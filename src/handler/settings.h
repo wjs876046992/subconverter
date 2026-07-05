@@ -45,6 +45,7 @@ struct Settings
     bool reloadConfOnRequest = false;
     RegexMatchConfigs renames, emojis;
     bool addEmoji = false, removeEmoji = false, appendType = false, filterDeprecated = true;
+    bool filterDirectReject = true;
     tribool UDPFlag, TFOFlag, skipCertVerify, TLS13Flag, enableInsert;
     bool enableSort = false, updateStrict = false;
     bool clashUseNewField = false, singBoxAddClashModes = true;

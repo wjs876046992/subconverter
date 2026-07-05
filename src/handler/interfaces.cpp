@@ -343,6 +343,7 @@ std::string subconverter(RESPONSE_CALLBACK_ARGS)
     tribool argGenClashScript = getUrlArg(argument, "script"), argEnableInsert = getUrlArg(argument, "insert");
     tribool argSkipCertVerify = getUrlArg(argument, "scv"), argFilterDeprecated = getUrlArg(argument, "fdn"), argExpandRulesets = getUrlArg(argument, "expand"), argAppendUserinfo = getUrlArg(argument, "append_info");
     tribool argPrependInsert = getUrlArg(argument, "prepend"), argGenClassicalRuleProvider = getUrlArg(argument, "classic"), argTLS13 = getUrlArg(argument, "tls13");
+    tribool argFilterDirectReject = getUrlArg(argument, "fdr");
 
     std::string base_content, output_content;
     ProxyGroupConfigs lCustomProxyGroups = global.customProxyGroups;
@@ -413,6 +414,7 @@ std::string subconverter(RESPONSE_CALLBACK_ARGS)
 
     ext.clash_proxies_style = global.clashProxiesStyle;
     ext.clash_proxy_groups_style = global.clashProxyGroupsStyle;
+    ext.filter_direct_reject = argFilterDirectReject.get(global.filterDirectReject);
 
     /// read preference from argument, assign global var if not in argument
     ext.tfo.define(argTFO).define(global.TFOFlag);
@@ -1125,6 +1127,7 @@ std::string surgeConfToClash(RESPONSE_CALLBACK_ARGS)
     ext.tls13 = global.TLS13Flag;
     ext.clash_proxies_style = global.clashProxiesStyle;
     ext.clash_proxy_groups_style = global.clashProxyGroupsStyle;
+    ext.filter_direct_reject = global.filterDirectReject;
 
     ProxyGroupConfigs dummy_groups;
     proxyToClash(nodes, clash, dummy_groups, false, ext);

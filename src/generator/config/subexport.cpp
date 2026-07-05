@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <numeric>
+#include <set>
 #include <cmath>
 #include <climits>
 
@@ -747,6 +748,25 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
     else
         yamlnode["Proxy"] = proxies;
 
+    // Pre-pass: determine which groups survive filter_direct_reject
+    std::set<std::string> all_group_names;
+    std::set<std::string> surviving_groups;
+    for(const ProxyGroupConfig &x : extra_proxy_group)
+    {
+        string_array test_list;
+        for(const auto &y : x.Proxies)
+            groupGenerate(y, nodelist, test_list, true, ext);
+        if(test_list.empty())
+            test_list.emplace_back("DIRECT");
+        bool only_direct_reject = std::all_of(test_list.begin(), test_list.end(), [](const std::string &s)
+        {
+            std::string lower = toLower(s);
+            return lower == "direct" || lower == "reject";
+        });
+        all_group_names.insert(x.Name);
+        if(!only_direct_reject)
+            surviving_groups.insert(x.Name);
+    }
 
     for(const ProxyGroupConfig &x : extra_proxy_group)
     {
@@ -789,12 +809,35 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
         for(const auto& y : x.Proxies)
             groupGenerate(y, nodelist, filtered_nodelist, true, ext);
 
+        // Remove references to groups that will be filtered out
+        {
+            string_array cleaned;
+            for(const auto &name : filtered_nodelist)
+            {
+                if(all_group_names.find(name) != all_group_names.end() && surviving_groups.find(name) == surviving_groups.end())
+                    continue;
+                cleaned.push_back(name);
+            }
+            filtered_nodelist = std::move(cleaned);
+        }
+
         if(!x.UsingProvider.empty())
             singlegroup["use"] = x.UsingProvider;
         else
         {
             if(filtered_nodelist.empty())
                 filtered_nodelist.emplace_back("DIRECT");
+
+            if(ext.filter_direct_reject)
+            {
+                bool only_direct_reject = std::all_of(filtered_nodelist.begin(), filtered_nodelist.end(), [](const std::string &s)
+                {
+                    std::string lower = toLower(s);
+                    return lower == "direct" || lower == "reject";
+                });
+                if(only_direct_reject)
+                    continue;
+            }
         }
         if(!filtered_nodelist.empty())
             singlegroup["proxies"] = filtered_nodelist;
@@ -1147,6 +1190,27 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
     ini.set_current_section("Proxy Group");
     ini.get_items(original_groups);
     ini.erase_section();
+
+    // Pre-pass: determine which groups survive filter_direct_reject
+    std::set<std::string> all_group_names;
+    std::set<std::string> surviving_groups;
+    for(const ProxyGroupConfig &x : extra_proxy_group)
+    {
+        string_array test_list;
+        for(const auto &y : x.Proxies)
+            groupGenerate(y, nodelist, test_list, true, ext);
+        if(test_list.empty())
+            test_list.emplace_back("DIRECT");
+        bool only_direct_reject = std::all_of(test_list.begin(), test_list.end(), [](const std::string &s)
+        {
+            std::string lower = toLower(s);
+            return lower == "direct" || lower == "reject";
+        });
+        all_group_names.insert(x.Name);
+        if(!only_direct_reject)
+            surviving_groups.insert(x.Name);
+    }
+
     for(const ProxyGroupConfig &x : extra_proxy_group)
     {
         string_array filtered_nodelist;
@@ -1175,8 +1239,31 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
         for(const auto &y : x.Proxies)
             groupGenerate(y, nodelist, filtered_nodelist, true, ext);
 
+        // Remove references to groups that will be filtered out
+        {
+            string_array cleaned;
+            for(const auto &name : filtered_nodelist)
+            {
+                if(all_group_names.find(name) != all_group_names.end() && surviving_groups.find(name) == surviving_groups.end())
+                    continue;
+                cleaned.push_back(name);
+            }
+            filtered_nodelist = std::move(cleaned);
+        }
+
         if(filtered_nodelist.empty())
             filtered_nodelist.emplace_back("DIRECT");
+
+        if(ext.filter_direct_reject)
+        {
+            bool only_direct_reject = std::all_of(filtered_nodelist.begin(), filtered_nodelist.end(), [](const std::string &s)
+            {
+                std::string lower = toLower(s);
+                return lower == "direct" || lower == "reject";
+            });
+            if(only_direct_reject)
+                continue;
+        }
 
         if(filtered_nodelist.size() == 1)
         {
@@ -1523,6 +1610,26 @@ void proxyToQuan(std::vector<Proxy> &nodes, INIReader &ini, std::vector<RulesetC
     ini.set_current_section("POLICY");
     ini.erase_section();
 
+    // Pre-pass: determine which groups survive filter_direct_reject
+    std::set<std::string> all_group_names;
+    std::set<std::string> surviving_groups;
+    for(const ProxyGroupConfig &x : extra_proxy_group)
+    {
+        string_array test_list;
+        for(const auto &y : x.Proxies)
+            groupGenerate(y, nodelist, test_list, true, ext);
+        if(test_list.empty())
+            test_list.emplace_back("direct");
+        bool only_direct_reject = std::all_of(test_list.begin(), test_list.end(), [](const std::string &s)
+        {
+            std::string lower = toLower(s);
+            return lower == "direct" || lower == "reject";
+        });
+        all_group_names.insert(x.Name);
+        if(!only_direct_reject)
+            surviving_groups.insert(x.Name);
+    }
+
     for(const ProxyGroupConfig &x : extra_proxy_group)
     {
         string_array filtered_nodelist;
@@ -1568,8 +1675,31 @@ void proxyToQuan(std::vector<Proxy> &nodes, INIReader &ini, std::vector<RulesetC
         for(const auto &y : x.Proxies)
             groupGenerate(y, nodelist, filtered_nodelist, true, ext);
 
+        // Remove references to groups that will be filtered out
+        {
+            string_array cleaned;
+            for(const auto &name : filtered_nodelist)
+            {
+                if(all_group_names.find(name) != all_group_names.end() && surviving_groups.find(name) == surviving_groups.end())
+                    continue;
+                cleaned.push_back(name);
+            }
+            filtered_nodelist = std::move(cleaned);
+        }
+
         if(filtered_nodelist.empty())
             filtered_nodelist.emplace_back("direct");
+
+        if(ext.filter_direct_reject)
+        {
+            bool only_direct_reject = std::all_of(filtered_nodelist.begin(), filtered_nodelist.end(), [](const std::string &s)
+            {
+                std::string lower = toLower(s);
+                return lower == "direct" || lower == "reject";
+            });
+            if(only_direct_reject)
+                continue;
+        }
 
         if(filtered_nodelist.size() < 2) // force groups with 1 node to be static
             type = "static";
@@ -1850,6 +1980,26 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
     ini.get_items(original_groups);
     ini.erase_section();
 
+    // Pre-pass: determine which groups survive filter_direct_reject
+    std::set<std::string> all_group_names;
+    std::set<std::string> surviving_groups;
+    for(const ProxyGroupConfig &x : extra_proxy_group)
+    {
+        string_array test_list;
+        for(const auto &y : x.Proxies)
+            groupGenerate(y, nodelist, test_list, true, ext);
+        if(test_list.empty())
+            test_list.emplace_back("direct");
+        bool only_direct_reject = std::all_of(test_list.begin(), test_list.end(), [](const std::string &s)
+        {
+            std::string lower = toLower(s);
+            return lower == "direct" || lower == "reject";
+        });
+        all_group_names.insert(x.Name);
+        if(!only_direct_reject)
+            surviving_groups.insert(x.Name);
+    }
+
     for(const ProxyGroupConfig &x : extra_proxy_group)
     {
         std::string type;
@@ -1883,8 +2033,31 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
             for(const auto &y : x.Proxies)
                 groupGenerate(y, nodelist, filtered_nodelist, true, ext);
 
+            // Remove references to groups that will be filtered out
+            {
+                string_array cleaned;
+                for(const auto &name : filtered_nodelist)
+                {
+                    if(all_group_names.find(name) != all_group_names.end() && surviving_groups.find(name) == surviving_groups.end())
+                        continue;
+                    cleaned.push_back(name);
+                }
+                filtered_nodelist = std::move(cleaned);
+            }
+
             if(filtered_nodelist.empty())
                 filtered_nodelist.emplace_back("direct");
+
+            if(ext.filter_direct_reject)
+            {
+                bool only_direct_reject = std::all_of(filtered_nodelist.begin(), filtered_nodelist.end(), [](const std::string &s)
+                {
+                    std::string lower = toLower(s);
+                    return lower == "direct" || lower == "reject";
+                });
+                if(only_direct_reject)
+                    continue;
+            }
 
             if(filtered_nodelist.size() < 2) // force groups with 1 node to be static
                 type = "static";
@@ -2126,6 +2299,31 @@ void proxyToMellow(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Rulese
 
     ini.set_current_section("EndpointGroup");
 
+    // Pre-pass: determine which groups survive filter_direct_reject
+    std::set<std::string> all_group_names;
+    std::set<std::string> surviving_groups;
+    for(const ProxyGroupConfig &x : extra_proxy_group)
+    {
+        string_array test_list;
+        for(const auto &y : x.Proxies)
+            groupGenerate(y, nodelist, test_list, false, ext);
+        if(test_list.empty())
+        {
+            if(remarks_list.empty())
+                test_list.emplace_back("DIRECT");
+            else
+                test_list = remarks_list;
+        }
+        bool only_direct_reject = std::all_of(test_list.begin(), test_list.end(), [](const std::string &s)
+        {
+            std::string lower = toLower(s);
+            return lower == "direct" || lower == "reject";
+        });
+        all_group_names.insert(x.Name);
+        if(!only_direct_reject)
+            surviving_groups.insert(x.Name);
+    }
+
     for(const ProxyGroupConfig &x : extra_proxy_group)
     {
         string_array filtered_nodelist;
@@ -2146,12 +2344,35 @@ void proxyToMellow(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Rulese
         for(const auto &y : x.Proxies)
             groupGenerate(y, nodelist, filtered_nodelist, false, ext);
 
+        // Remove references to groups that will be filtered out
+        {
+            string_array cleaned;
+            for(const auto &name : filtered_nodelist)
+            {
+                if(all_group_names.find(name) != all_group_names.end() && surviving_groups.find(name) == surviving_groups.end())
+                    continue;
+                cleaned.push_back(name);
+            }
+            filtered_nodelist = std::move(cleaned);
+        }
+
         if(filtered_nodelist.empty())
         {
             if(remarks_list.empty())
                 filtered_nodelist.emplace_back("DIRECT");
             else
                 filtered_nodelist = remarks_list;
+        }
+
+        if(ext.filter_direct_reject)
+        {
+            bool only_direct_reject = std::all_of(filtered_nodelist.begin(), filtered_nodelist.end(), [](const std::string &s)
+            {
+                std::string lower = toLower(s);
+                return lower == "direct" || lower == "reject";
+            });
+            if(only_direct_reject)
+                continue;
         }
 
         //don't process these for now
@@ -2338,6 +2559,26 @@ std::string proxyToLoon(std::vector<Proxy> &nodes, const std::string &base_conf,
     ini.get_items(original_groups);
     ini.erase_section();
 
+    // Pre-pass: determine which groups survive filter_direct_reject
+    std::set<std::string> all_group_names;
+    std::set<std::string> surviving_groups;
+    for(const ProxyGroupConfig &x : extra_proxy_group)
+    {
+        string_array test_list;
+        for(const auto &y : x.Proxies)
+            groupGenerate(y, nodelist, test_list, true, ext);
+        if(test_list.empty())
+            test_list.emplace_back("DIRECT");
+        bool only_direct_reject = std::all_of(test_list.begin(), test_list.end(), [](const std::string &s)
+        {
+            std::string lower = toLower(s);
+            return lower == "direct" || lower == "reject";
+        });
+        all_group_names.insert(x.Name);
+        if(!only_direct_reject)
+            surviving_groups.insert(x.Name);
+    }
+
     for(const ProxyGroupConfig &x : extra_proxy_group)
     {
         string_array filtered_nodelist;
@@ -2364,8 +2605,31 @@ std::string proxyToLoon(std::vector<Proxy> &nodes, const std::string &base_conf,
         for(const auto &y : x.Proxies)
             groupGenerate(y, nodelist, filtered_nodelist, true, ext);
 
+        // Remove references to groups that will be filtered out
+        {
+            string_array cleaned;
+            for(const auto &name : filtered_nodelist)
+            {
+                if(all_group_names.find(name) != all_group_names.end() && surviving_groups.find(name) == surviving_groups.end())
+                    continue;
+                cleaned.push_back(name);
+            }
+            filtered_nodelist = std::move(cleaned);
+        }
+
         if(filtered_nodelist.empty())
             filtered_nodelist.emplace_back("DIRECT");
+
+        if(ext.filter_direct_reject)
+        {
+            bool only_direct_reject = std::all_of(filtered_nodelist.begin(), filtered_nodelist.end(), [](const std::string &s)
+            {
+                std::string lower = toLower(s);
+                return lower == "direct" || lower == "reject";
+            });
+            if(only_direct_reject)
+                continue;
+        }
 
         auto iter = std::find_if(original_groups.begin(), original_groups.end(), [&](const string_multimap::value_type &n)
         {
@@ -2878,6 +3142,26 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
         return;
     }
 
+    // Pre-pass: determine which groups survive filter_direct_reject
+    std::set<std::string> all_group_names;
+    std::set<std::string> surviving_groups;
+    for(const ProxyGroupConfig &x : extra_proxy_group)
+    {
+        string_array test_list;
+        for(const auto &y : x.Proxies)
+            groupGenerate(y, nodelist, test_list, true, ext);
+        if(test_list.empty())
+            test_list.emplace_back("DIRECT");
+        bool only_direct_reject = std::all_of(test_list.begin(), test_list.end(), [](const std::string &s)
+        {
+            std::string lower = toLower(s);
+            return lower == "direct" || lower == "reject";
+        });
+        all_group_names.insert(x.Name);
+        if(!only_direct_reject)
+            surviving_groups.insert(x.Name);
+    }
+
     for (const ProxyGroupConfig &x: extra_proxy_group)
     {
         string_array filtered_nodelist;
@@ -2902,8 +3186,31 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
         for (const auto &y : x.Proxies)
             groupGenerate(y, nodelist, filtered_nodelist, true, ext);
 
+        // Remove references to groups that will be filtered out
+        {
+            string_array cleaned;
+            for(const auto &name : filtered_nodelist)
+            {
+                if(all_group_names.find(name) != all_group_names.end() && surviving_groups.find(name) == surviving_groups.end())
+                    continue;
+                cleaned.push_back(name);
+            }
+            filtered_nodelist = std::move(cleaned);
+        }
+
         if (filtered_nodelist.empty())
             filtered_nodelist.emplace_back("DIRECT");
+
+        if(ext.filter_direct_reject)
+        {
+            bool only_direct_reject = std::all_of(filtered_nodelist.begin(), filtered_nodelist.end(), [](const std::string &s)
+            {
+                std::string lower = toLower(s);
+                return lower == "direct" || lower == "reject";
+            });
+            if(only_direct_reject)
+                continue;
+        }
 
         rapidjson::Value group(rapidjson::kObjectType);
 

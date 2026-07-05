@@ -41,6 +41,7 @@ struct extra_settings
     std::string clash_proxies_style = "flow";
     std::string clash_proxy_groups_style = "flow";
     bool authorized = false;
+    bool filter_direct_reject = true;
 
     extra_settings() = default;
     extra_settings(const extra_settings&) = delete;
