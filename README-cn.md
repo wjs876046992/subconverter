@@ -339,6 +339,7 @@ http://127.0.0.1:25500/sub?target=%TARGET%&url=%URL%&emoji=%EMOJI%····
 | prepend       |  可选 | true / false              | 用于设置插入 `insert_url` 时是否插入到所有节点前面，默认为 true                                                                                                                                                                   |
 | classic       |  可选 | true / false              | 用于设置是否生成 Clash classical rule-provider                                                                                                                                                                      |
 | tls13         |  可选 | true / false              | 用于设置是否为节点增加tls1.3开启参数                                                                                                                                                                                       |
+| fdr           |  可选 | true / false              | 用于过滤只包含 DIRECT 或 REJECT 的策略组，默认为 true，设置为 false 则保留这些组                                                                                                                                                |
 | new_name      |  可选 | true / false              | 如果设置为 true，则将启用 Clash 的新组名称 (proxies, proxy-groups, rules)                                                                                                                                                  |
 | ua            |  可选 | shadowrocket%2F2.2.65     | 用于自定义User-Agent字符串，需要经过 [URLEncode](https://www.urlencoder.org/) 处理。如果不指定，将使用默认的User-Agent                                                                                                               |
 
@@ -800,6 +801,16 @@ exclude=(流量|官网)
         rename_node=!!GROUPID=0!!中国@中
         # 指定此重命名仅在第一个订阅的节点中生效
         ```
+
+12. **filter_direct_reject**
+
+    > 过滤只包含 DIRECT 或 REJECT 的策略组，设置为 true 时打开，默认为 true
+    >
+    > 当策略组的所有节点解析后只剩 DIRECT 或 REJECT 时，该组将被移除
+    >
+    > 同时会清理其他策略组中对已移除组的引用，避免出现 "proxy group not found" 错误
+    >
+    > 可通过 HTTP 参数 `&fdr=` 覆盖此设置
 
 </details>
 <details>

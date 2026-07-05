@@ -52,6 +52,7 @@ node_pref:
   clash_proxies_style: flow
   clash_proxy_groups_style: block
   singbox_add_clash_modes: true
+  filter_direct_reject: true
   rename_node:
 #  - {match: "\\(?((x|X)?(\\d+)(\\.?\\d+)?)((\\s?倍率?)|(x|X))\\)?", replace: "$1x"}
 #  - {script: "function rename(node){}"}

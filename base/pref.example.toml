@@ -147,6 +147,10 @@ clash_proxy_groups_style = "block"
 # add Clash mode to sing-box rules, and add a GLOBAL group to end of outbounds
 singbox_add_clash_modes = true
 
+# filter out proxy groups that only contain DIRECT or REJECT
+# also removes orphaned references to filtered groups from other groups
+filter_direct_reject = true
+
 [[node_pref.rename_node]]
 match = '\(?((x|X)?(\d+)(\.?\d+)?)((\s?倍率?)|(x|X))\)?'
 replace = "$1x"
